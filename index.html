@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI RAG Assistant</title>
+
+<style>
+
+/* =========================
+   GLOBAL
+========================= */
+
+body {
+    margin: 0;
+    font-family: "Segoe UI", Arial;
+    background: radial-gradient(
+        circle at top,
+        #141824,
+        #0f1115 60%
+    );
+    color: var(--text);
+    color: #e8e8e8;
+    display: flex;
+    height: 100dvh;
+    overflow: hidden;
+}
+
+
+/* Smooth scroll */
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #555 #222;
+}
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1f2226;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 6px;
+}
+
+
+
+/* =========================
+   CLAY SHADOW VARIABLES
+========================= */
+
+:root {
+
+    --bg: #0f1115;        /* main background */
+    --surface: #171a21;   /* sidebar */
+    --card: #1d212b;      /* bubbles/cards */
+    --border: #2a2f3a;
+
+    --text: #e6eaf2;
+    --text-muted: #9aa3b2;
+
+    --accent: #4f8cff;
+    --accent-hover: #6aa1ff;
+}
+
+
+
+
+/* =========================
+   OVERLAY
+========================= */
+
+#overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    display: none;
+    z-index: 999;
+}
+
+
+
+/* =========================
+   SIDEBAR
+========================= */
+
+#sidebar {
+    width: 260px;
+    padding: 18px;
+    margin: 12px;
+    border-radius: 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow:
+        0 10px 30px rgba(0,0,0,0.4);
+
+    overflow-y: auto;
+    transition: 0.3s;
+    z-index: 1000;
+}
+
+
+#sidebarHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+
+
+/* =========================
+   CHAT SESSION ITEMS
+========================= */
+
+.chat-session {
+
+    padding: 10px;
+    margin: 6px 0;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 13px;
+    background: var(--soft);
+
+    box-shadow:
+        4px 4px 8px rgba(0,0,0,0.4),
+       -2px -2px 6px rgba(255,255,255,0.04);
+
+    transition: 0.2s;
+}
+
+.chat-session:hover {
+    transform: translateY(-2px);
+}
+
+.chat-session.active {
+    background: var(--accent);
+}
+
+
+
+/* =========================
+   BUTTONS
+========================= */
+
+.sidebar-btn {
+
+    padding: 12px;
+    margin: 12px 0;
+    border-radius: 14px;
+    cursor: pointer;
+    text-align: center;
+    background: var(--soft);
+
+    box-shadow:
+        6px 6px 12px rgba(0,0,0,0.35),
+       -3px -3px 8px rgba(255,255,255,0.05);
+
+    transition: 0.2s;
+}
+
+.sidebar-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* =========================
+   DESKTOP FIXES
+========================= */
+
+@media (min-width: 769px) {
+
+    /* Hide mobile menu button */
+    #menuBtn {
+        display: none;
+    }
+
+    /* Hide close button in sidebar */
+    #sidebarHeader span {
+        display: none;
+    }
+
+    /* Perfect center title */
+    #topbar {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        text-align: center;
+    }
+
+}
+
+
+/* =========================
+   UPLOAD CARD
+========================= */
+
+.upload-card {
+
+    margin-top: 15px;
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--soft);
+
+    box-shadow:
+        inset 4px 4px 10px rgba(0,0,0,0.4),
+        inset -2px -2px 6px rgba(255,255,255,0.05);
+
+    transition: 0.3s;
+}
+
+.upload-card:hover {
+    transform: scale(1.02);
+}
+
+
+
+/* =========================
+   MAIN
+========================= */
+
+#main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin: 0px;
+    border-radius: 22px;
+    background: transparent;
+
+    box-shadow:
+        10px 10px 20px var(--shadow-dark),
+       -6px -6px 16px var(--shadow-light);
+}
+
+
+
+/* =========================
+   TOPBAR
+========================= */
+
+#topbar {
+
+    height: 55px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(23,26,33,0.7);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    position: relative;
+}
+
+
+
+/* =========================
+   CHAT CONTAINER
+========================= */
+
+#chat-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 22px;
+}
+
+
+
+/* =========================
+   MESSAGE BUBBLES
+========================= */
+
+.message {
+    display: flex;
+    margin: 12px 0;
+}
+
+.user {
+    justify-content: flex-end;
+}
+
+.bot {
+    justify-content: flex-start;
+}
+
+
+.message .bubble {
+
+    max-width: 70%;
+    padding: 14px 18px;
+    border-radius: 18px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+
+    background: var(--card);
+    border: 1px solid var(--border);
+
+    box-shadow:
+        6px 6px 14px rgba(0,0,0,0.35),
+       -4px -4px 10px rgba(255,255,255,0.04);
+}
+
+
+.user .bubble {
+
+    background: var(--accent);
+    box-shadow:
+        6px 6px 14px rgba(0,0,0,0.4),
+       -2px -2px 8px rgba(16,163,127,0.4);
+}
+
+
+
+/* =========================
+   INPUT AREA
+========================= */
+
+#input-area {
+    padding: 14px 18px;
+}
+
+
+
+#input-box {
+
+    display: flex;
+    align-items: flex-end;
+    border-radius: 26px;
+    padding: 14px;
+    gap: 10px;
+    max-width: 900px;
+    margin: auto;
+
+    background: var(--soft);
+
+    box-shadow:
+        inset 5px 5px 12px rgba(0,0,0,0.45),
+        inset -3px -3px 8px rgba(255,255,255,0.05);
+}
+
+
+
+/* =========================
+   TEXTAREA
+========================= */
+
+#message {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 15px;
+    outline: none;
+    resize: none;
+    overflow-y: auto;
+    max-height: 160px;
+    line-height: 1.4;
+}
+
+
+
+/* =========================
+   SEND BUTTON
+========================= */
+
+#sendBtn {
+
+    border: none;
+    color: white;
+    padding: 10px 18px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-weight: bold;
+
+    background: linear-gradient(
+    135deg,
+    var(--accent),
+    var(--accent-hover)
+    );
+
+    box-shadow:
+        0 4px 14px rgba(79,140,255,0.35);
+
+    transition: 0.2s;
+}
+
+#sendBtn:hover {
+    transform: translateY(-1px);
+}
+
+
+
+/* =========================
+   THINKING DOTS
+========================= */
+
+.typing {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.typing span {
+    width: 6px;
+    height: 6px;
+    background: #ccc;
+    border-radius: 50%;
+    animation: blink 1.4s infinite;
+}
+
+.typing span:nth-child(2) { animation-delay: 0.2s; }
+.typing span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes blink {
+    0% {opacity: 0.2;}
+    20% {opacity: 1;}
+    100% {opacity: 0.2;}
+}
+
+
+
+/* =========================
+   FILE LIST
+========================= */
+
+.file-item {
+
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    border-radius: 10px;
+    margin: 6px 0;
+
+    background: var(--soft);
+
+    box-shadow:
+        4px 4px 10px rgba(0,0,0,0.4),
+       -2px -2px 6px rgba(255,255,255,0.04);
+}
+
+/* =========================
+   ULTRA PREMIUM MOBILE
+========================= */
+
+@media (max-width: 768px) {
+
+    html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+
+        background: radial-gradient(
+            circle at top,
+            #151925,
+            #0f1115 65%
+        );
+    }
+
+    body {
+        flex-direction: column;
+        overflow-x: hidden;
+        color: var(--text);
+    }
+
+
+    /* ======================
+       MAIN FULL SCREEN
+    ====================== */
+
+    #main {
+        margin: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        width: 100%;
+        height: 100dvh;
+        background: transparent;
+    }
+
+
+    /* ======================
+       SIDEBAR — GLASS PANEL
+    ====================== */
+
+    #sidebar {
+        position: fixed;
+        left: -100%;
+        top: 0;
+        height: 100%;
+        width: 270px;
+        margin: 0;
+        border-radius: 0;
+
+        background: rgba(23,26,33,0.92);
+        backdrop-filter: blur(30px);
+
+        border-right: 1px solid var(--border);
+
+        box-shadow:
+            0 20px 60px rgba(0,0,0,0.6);
+
+        transition: 0.35s cubic-bezier(.4,.0,.2,1);
+    }
+
+    #sidebar.show {
+        left: 0;
+    }
+
+
+    /* ======================
+       OVERLAY
+    ====================== */
+
+    #overlay {
+        backdrop-filter: blur(8px);
+        background: rgba(0,0,0,0.45);
+    }
+
+
+    /* ======================
+       TOPBAR — GLASS
+    ====================== */
+
+    #topbar {
+        position: relative;
+
+        height: 80px !important;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        background: rgba(23,26,33,0.75);
+        backdrop-filter: blur(20px);
+
+        border-bottom: 1px solid var(--border);
+    }
+
+
+    /* MENU BUTTON */
+
+    #menuBtn {
+        position: absolute;
+        left: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 20px;
+        color: var(--text);
+        cursor: pointer;
+    }
+
+
+    /* LOGO WITH GLOW */
+
+    #logo {
+        height: 110px !important;
+
+        filter: drop-shadow(
+            0 4px 12px rgba(79,140,255,0.35)
+        );
+        margin-top : 10px;
+
+        animation: logoFloat 5s ease-in-out infinite;
+    }
+
+    @keyframes logoFloat {
+        0%,100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+    }
+
+
+    /* ======================
+       CHAT AREA
+    ====================== */
+
+    #chat-container {
+        padding: 16px;
+        padding-bottom: 140px;
+    }
+
+
+    /* ======================
+       MESSAGE ANIMATION
+    ====================== */
+
+    .message {
+        animation: messageIn 0.25s ease;
+    }
+
+    @keyframes messageIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+
+    /* ======================
+       MESSAGE BUBBLES
+    ====================== */
+
+    .message .bubble {
+        max-width: 86%;
+        font-size: 14px;
+        padding: 13px 15px;
+
+        border-radius: 18px;
+
+        background: var(--card);
+        border: 1px solid var(--border);
+
+        box-shadow:
+            0 6px 18px rgba(0,0,0,0.35);
+    }
+
+    .user .bubble {
+        background: linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent-hover)
+        );
+
+        border: none;
+
+        box-shadow:
+            0 6px 18px rgba(79,140,255,0.35);
+    }
+
+
+    /* ======================
+       FLOATING INPUT — iOS STYLE
+    ====================== */
+
+    #input-area {
+        position: fixed;
+        bottom: 14px;
+        left: 14px;
+        right: 14px;
+        padding: 0;
+        background: transparent;
+    }
+
+    #input-box {
+
+        max-width: 100%;
+        border-radius: 24px;
+        padding: 12px;
+
+        background: rgba(23,26,33,0.9);
+        border: 1px solid var(--border);
+
+        backdrop-filter: blur(25px);
+
+        box-shadow:
+            0 10px 30px rgba(0,0,0,0.45),
+            inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+
+
+    /* TEXT INPUT */
+
+    #message {
+        font-size: 15px;
+        color: var(--text);
+    }
+
+
+    /* ======================
+       SEND BUTTON — PREMIUM
+    ====================== */
+
+    #sendBtn {
+
+        padding: 10px 18px;
+        border-radius: 14px;
+        font-size: 14px;
+
+        background: linear-gradient(
+            135deg,
+            var(--accent),
+            var(--accent-hover)
+        );
+
+        box-shadow:
+            0 6px 18px rgba(79,140,255,0.35);
+
+        transition: 0.18s ease;
+    }
+
+    #sendBtn:active {
+        transform: scale(0.94);
+    }
+
+}
+
+
+
+
+.cursor {
+    display: inline-block;
+    width: 6px;
+    height: 16px;
+    background: #10a37f;
+    margin-left: 3px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%,100% {opacity: 0;}
+    50% {opacity: 1;}
+}
+
+
+/* Scrollbar — Dark Theme */
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #444;
+    border-radius: 6px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #444 #1a1a1a;
+}
+
+/* =========================
+   LOGO
+========================= */
+
+#topbar {
+    height: 100px;   /* more space for artwork */
+}
+
+#logo {
+    height: 130px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 8px rgba(16,163,127,0.35));
+    margin-top: 15px;
+}
+
+
+
+
+</style>
+
+</head>
+
+<body>
+
+<div id="overlay" onclick="closeSidebar()"></div>
+
+<div id="sidebar">
+
+<div id="sidebarHeader">
+    <h3>🤖 RAG Assistant</h3>
+    <span onclick="closeSidebar()">✖</span>
+</div>
+
+<div class="sidebar-btn" onclick="createNewChat()">➕ New Chat</div>
+<div id="chatSessions"></div>
+
+<hr>
+
+<input type="file" id="fileInput" multiple hidden>
+
+<div class="upload-card" onclick="openFilePicker()">
+📂 Click to Upload Files
+</div>
+
+<div id="selectedFiles" style="font-size:12px;color:#aaa;"></div>
+
+<div class="sidebar-btn" id="uploadBtn" onclick="uploadFiles()">Upload</div>
+
+<div id="progress">
+    <div id="progress-bar"></div>
+</div>
+
+<div class="sidebar-btn" onclick="toggleFiles()">📁 Files</div>
+
+<div id="fileList"></div>
+
+</div>
+
+<div id="main">
+
+<div id="topbar">
+
+    <span id="menuBtn" onclick="toggleMenu()">☰</span>
+
+    <img src="static/mclovin_logo_transparent.png"
+         id="logo"
+         alt="Mclovin Logo">
+
+</div>
+
+
+
+<div id="chat-container"></div>
+
+<div id="input-area">
+    <div id="input-box">
+        <textarea id="message" placeholder="Ask anything..." rows="1"></textarea>
+        <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+</div>
+
+<script>
+
+/* Sidebar */
+
+const sidebar = document.getElementById("sidebar");
+const overlay = document.getElementById("overlay");
+
+function toggleMenu() {
+
+    sidebar.classList.toggle("show");
+
+    if (sidebar.classList.contains("show")) {
+        overlay.style.display = "block";
+    } else {
+        overlay.style.display = "none";
+    }
+}
+
+function closeSidebar() {
+    sidebar.classList.remove("show");
+    overlay.style.display = "none";
+}
+
+
+/* STATE */
+
+let chats = {};
+let currentChatId = null;
+let controller = null;
+let isGenerating = false;
+
+const chatContainer = document.getElementById("chat-container");
+const fileInput = document.getElementById("fileInput");
+const sendBtn = document.getElementById("sendBtn");
+const inputBox = document.getElementById("message");
+
+/* Thinking dots */
+
+function thinkingDots() {
+    return `<div class="typing"><span></span><span></span><span></span></div>`;
+}
+
+/* Chat sessions */
+
+function createNewChat() {
+
+    const id = "chat_" + Date.now();   // internal id (hidden from user)
+
+    chats[id] = {
+        id: id,
+        title: "New Chat",
+        messages: [],
+        createdAt: new Date()
+    };
+
+    currentChatId = id;
+
+    renderChatSessions();
+    renderMessages();
+
+    // ⭐ Close sidebar automatically on mobile
+    closeSidebar();
+}
+
+
+function renderChatSessions() {
+
+    const container = document.getElementById("chatSessions");
+    container.innerHTML = "";
+
+    Object.keys(chats).forEach(id => {
+
+        const chat = chats[id];
+
+        const div = document.createElement("div");
+        div.className = "chat-session " + (id === currentChatId ? "active" : "");
+        div.innerText = chat.title;
+
+        div.onclick = () => {
+            currentChatId = id;
+            renderChatSessions();
+            renderMessages();
+        };
+
+        container.appendChild(div);
+    });
+}
+
+function renderMessages() {
+
+    chatContainer.innerHTML = "";
+
+    if (!currentChatId) return;
+
+    chats[currentChatId].messages.forEach(m => {
+        addMessage(m.text, m.role, false);
+    });
+}
+
+
+/* Messages */
+
+function addMessage(text, role, save = true) {
+
+    const wrapper = document.createElement("div");
+    wrapper.className = "message " + role;
+
+    const bubble = document.createElement("div");
+    bubble.className = "bubble";
+    bubble.innerHTML = text;
+
+    wrapper.appendChild(bubble);
+
+    chatContainer.appendChild(wrapper);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    if (save && currentChatId) {
+        chats[currentChatId].messages.push({text, role});
+    }
+
+    return bubble;
+}
+
+
+/* Send message */
+
+async function sendMessage() {
+
+    if (!currentChatId) createNewChat();
+
+    if (isGenerating && controller) {
+        controller.abort();
+        finishGeneration();
+        return;
+    }
+
+    const message = inputBox.value.trim();
+    if (!message) return;
+
+    const chat = chats[currentChatId];
+
+    // Set chat title from first message
+    if (chat.title === "New Chat") {
+        chat.title = message.slice(0, 30);
+        renderChatSessions();
+    }
+
+    addMessage(message, "user");   // save user msg
+    inputBox.value = "";
+    inputBox.style.height = "auto";
+
+    inputBox.disabled = true;
+    isGenerating = true;
+    sendBtn.innerText = "Stop";
+
+    // thinking bubble (not saved)
+    const botBubble = addMessage(thinkingDots(), "bot", false);
+
+    controller = new AbortController();
+
+    let fullResponse = "";
+
+    try {
+
+        const response = await fetch("/chat", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({message}),
+            signal: controller.signal
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        let started = false;
+
+        while (true) {
+
+            const {done, value} = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value);
+
+            if (!started) {
+                botBubble.innerHTML = "";
+                started = true;
+            }
+
+            fullResponse += chunk;
+            botBubble.innerHTML += chunk;
+
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+    } catch {
+        botBubble.innerHTML += "<br><i>Stopped</i>";
+    }
+
+    // ⭐ SAVE BOT MESSAGE AFTER STREAM ENDS
+    if (currentChatId) {
+        chats[currentChatId].messages.push({
+            text: fullResponse,
+            role: "bot"
+        });
+    }
+
+    finishGeneration();
+}
+
+
+function finishGeneration() {
+    inputBox.disabled = false;
+    sendBtn.innerText = "Send";
+    isGenerating = false;
+}
+
+/* Upload */
+
+function openFilePicker() {
+    fileInput.click();
+}
+
+fileInput.addEventListener("change", () => {
+
+    const selectedDiv = document.getElementById("selectedFiles");
+
+    if (fileInput.files.length === 0) {
+        selectedDiv.innerHTML = "";
+        return;
+    }
+
+    let names = [];
+
+    for (let f of fileInput.files) {
+        names.push("📄 " + f.name);
+    }
+
+    selectedDiv.innerHTML = names.join("<br>");
+});
+
+async function uploadFiles() {
+
+    const files = fileInput.files;
+    if (!files.length) return;
+
+    const uploadBtn = document.getElementById("uploadBtn");
+
+    uploadBtn.innerText = "Uploading...";
+    uploadBtn.style.opacity = "0.6";
+
+    const formData = new FormData();
+    for (let f of files) formData.append("files", f);
+
+    const progress = document.getElementById("progress");
+    const bar = document.getElementById("progress-bar");
+
+    progress.style.display = "block";
+    bar.style.width = "40%";
+
+    await fetch("/upload", { method: "POST", body: formData });
+
+    bar.style.width = "100%";
+
+    setTimeout(() => {
+        progress.style.display = "none";
+        bar.style.width = "0%";
+    }, 500);
+
+    uploadBtn.innerText = "✅ Uploaded";
+
+    setTimeout(() => {
+        uploadBtn.innerText = "Upload";
+        uploadBtn.style.opacity = "1";
+    }, 1500);
+
+    fileInput.value = "";
+    document.getElementById("selectedFiles").innerHTML = "";
+
+    loadFiles();
+}
+
+/* Files */
+
+async function toggleFiles() {
+
+    const fileList = document.getElementById("fileList");
+
+    if (fileList.style.display === "none") {
+        await loadFiles();
+        fileList.style.display = "block";
+    } else {
+        fileList.style.display = "none";
+    }
+}
+
+async function loadFiles() {
+
+    const fileList = document.getElementById("fileList");
+
+    const response = await fetch("/files");
+    const data = await response.json();
+
+    fileList.innerHTML = "";
+
+    data.files.forEach(file => {
+
+        const div = document.createElement("div");
+        div.className = "file-item";
+
+        div.innerHTML = `
+            <span>${file}</span>
+            <button onclick="deleteFile('${file}')">X</button>
+        `;
+
+        fileList.appendChild(div);
+    });
+}
+
+async function deleteFile(filename) {
+
+    await fetch("/delete", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({filename})
+    });
+
+    loadFiles();
+}
+
+/* Enter */
+
+inputBox.addEventListener("keydown", e => {
+
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
+
+});
+
+/* Auto grow textarea */
+
+inputBox.addEventListener("input", () => {
+
+    inputBox.style.height = "auto";
+    inputBox.style.height = inputBox.scrollHeight + "px";
+
+});
+
+/* Init */
+
+createNewChat();
+
+</script>
+
+</body>
+</html>
